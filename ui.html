@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost & Found Dynamo - Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Blue to Pink Gradient */
+            background: linear-gradient(135deg, #3b82f6 0%, #ec4899 100%); 
+            min-height: 100vh;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .app-card {
+            background-color: white;
+            border-radius: 1.5rem; /* Larger rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+            padding: 2.5rem;
+            transition: all 0.5s ease;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            position: relative;
+            padding-bottom: 10px; /* Space for the underline */
+        }
+        .tab-button.active { 
+            color: #ec4899; 
+            font-weight: 700; 
+        }
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #ec4899; 
+            border-radius: 2px;
+        }
+        .card { 
+            transition: all 0.3s ease; 
+            transform: scale(1);
+        }
+        .card:hover { 
+            transform: scale(1.02); 
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .sql-feature-tag {
+            background-color: #fce7f3; /* Light pink background */
+            color: #be185d; /* Dark pink text */
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+        }
+        .highlight-box {
+            background-color: #e0f2fe; /* Light blue */
+            border-left: 5px solid #3b82f6; /* Solid blue bar */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* Blue glow */
+            border-color: #3b82f6;
+        }
+        .table-container { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            position: relative;
+        }
+        .table-container thead th {
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="main-container">
+        <!-- Header and Navigation Tabs -->
+        <header class="app-card mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-4xl font-extrabold text-gray-800 flex items-center">
+                    <i class="fas fa-search-location mr-3 text-pink-500"></i>Lost & Found Dynamo
+                </h1>
+                <div class="flex space-x-2">
+                    <!-- FUNCTIONAL BUTTONS -->
+                    <button onclick="showNotifications()" class="bg-blue-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-600 transition duration-300 shadow-md flex items-center transform hover:scale-105">
+                        <i class="fas fa-bell mr-2"></i> Notifications
+                    </button>
+                    <button onclick="showProfile()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-semibold hover:bg-gray-300 transition duration-300 shadow-md flex items-center transform hover:scale-105">
+                        <i class="fas fa-user-circle mr-2"></i> Profile
+                    </button>
+                </div>
+            </div>
+            
+            <nav class="flex border-b-2 border-gray-100 space-x-8 -mb-4 pt-4">
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none active" onclick="showView('public-search')">
+                    <i class="fas fa-box-open mr-2"></i> Public Item Search
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('add-item')">
+                    <i class="fas fa-plus-circle mr-2"></i> Report Found Item
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('admin-panel')">
+                    <i class="fas fa-cogs mr-2"></i> Admin Panel
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('sql-features')">
+                    <i class="fas fa-database mr-2"></i> Database Architecture
+                </button>
+            </nav>
+        </header>
+
+        <!-- 1. Public Search View -->
+        <div id="public-search" class="view">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Unclaimed Inventory & Status</h2>
+
+                <!-- Search Form -->
+                <div class="bg-gray-50 p-6 rounded-xl shadow-inner mb-8 border border-gray-200">
+                    <label for="itemSearch" class="block text-lg font-medium text-gray-700 mb-3">Search for Your Lost Property:</label>
+                    <div class="flex space-x-3">
+                        <input type="text" id="itemSearch" onkeyup="filterUnclaimedItems()" placeholder="e.g., 'Dell Laptop', 'Blue Jacket', 'Wallet'" class="input-glow flex-grow p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200">
+                        <button onclick="filterUnclaimedItems()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-pink-600 transition duration-200 shadow-lg">
+                            <i class="fas fa-search mr-2"></i> Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Unclaimed Items Table (Driven by Query 4 and Function fn_DaysUnclaimed) -->
+                <div class="table-container shadow-inner border border-gray-100 rounded-xl">
+                    <h3 class="text-xl font-medium p-4 bg-gray-50 rounded-t-xl text-gray-700 border-b">Available Unclaimed Items <span class="sql-feature-tag"><i class="fas fa-terminal mr-1"></i> Query 4</span></h3>
+                    <table id="unclaimedItemsTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name & Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description/Color</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Found Date / Location</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Days Unclaimed <span class="text-blue-500 font-bold">(*fn_DaysUnclaimed)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Report Found Item View -->
+        <div id="add-item" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center"><i class="fas fa-hand-holding-heart mr-3 text-pink-500"></i> Report a Found Item - Thank You!</h2>
+                <p class="text-gray-600 mb-8">Please provide details about the item you found and where you found it. This helps us reunite it with the owner quickly.</p>
+
+                <form id="addItemForm" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Item Details -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-blue-600">Item Information</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                            <input type="text" id="newItemName" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="newItemCategory" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="" disabled selected>Select Category</option>
+                                <option>Electronics</option>
+                                <option>Accessories</option>
+                                <option>Books</option>
+                                <option>Clothing</option>
+                                <option>Documents</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                            <input type="text" id="newItemColor" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Detailed Description</label>
+                            <textarea id="newItemDescription" rows="3" required class="input-glow w-full p-3 border border-gray-300 rounded-lg"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Location & Finder Details -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-blue-600">Location & Finder Information</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date Found</label>
+                            <input type="date" id="newDateFound" required max="" class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Found Location (Place Name)</label>
+                            <select id="newPlaceID" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="" disabled selected>Select Public Place</option>
+                                <option value="1">City Library</option>
+                                <option value="3">Metro Station</option>
+                                <option value="4">Airport</option>
+                                <option value="6">Park</option>
+                                <option value="9">University</option>
+                                <option value="10">Theatre</option>
+                            </select>
+                        </div>
+                        <div class="pt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Your Contact Email (Finder)</label>
+                            <input type="email" id="newFinderEmail" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="pt-6">
+                            <button type="submit" class="w-full bg-pink-500 text-white text-lg py-3 rounded-xl font-bold hover:bg-pink-600 transition duration-200 shadow-xl shadow-pink-300/50 flex items-center justify-center">
+                                <i class="fas fa-upload mr-3"></i> Submit Item Report
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Admin Panel View -->
+        <div id="admin-panel" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Administration & Claim Management</h2>
+
+                <!-- Metrics Section (Driven by Query 1) -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-600 flex items-center"><i class="fas fa-chart-line mr-2"></i> System Metrics <span class="sql-feature-tag ml-3">Query 1</span></h3>
+                    <div id="metricsCards" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Metrics will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Employee Performance Section (Driven by Query 2) -->
+                <div class="bg-gray-50 p-6 rounded-xl shadow-inner mb-8 table-container border border-gray-200">
+                    <h3 class="text-xl font-semibold mb-4 text-pink-600 flex items-center"><i class="fas fa-users-cog mr-2"></i> Staff Workload (Performance) <span class="sql-feature-tag ml-3">Query 2</span></h3>
+                    <table id="employeeTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Employee Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Position</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Items Managed</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Claim Management Section (Driven by Query 3 and Procedure sp_ApproveClaim) -->
+                <div class="bg-yellow-50 p-6 rounded-xl shadow-inner border border-yellow-200 table-container">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600 flex items-center"><i class="fas fa-gavel mr-2"></i> Pending Claims for Review <span class="sql-feature-tag ml-3">Query 3</span></h3>
+                    <table id="pendingClaimsTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-yellow-100 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Claim ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Claim Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Item Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Owner Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Found At</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Action <span class="text-red-500 font-bold">(*sp_ApproveClaim)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Database Architecture View -->
+        <div id="sql-features" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center"><i class="fas fa-server mr-3 text-blue-600"></i> Core Database Architecture Components</h2>
+                <p class="text-gray-600 mb-8">These components handle complex logic and data integrity behind the scenes, ensuring the system runs smoothly and securely.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    <!-- Triggers & Functions -->
+                    <div class="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-sitemap mr-2"></i> Triggers & Functions</h3>
+                        
+                        <div class="highlight-box">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">trg_Item_BeforeUpdate <span class="sql-feature-tag ml-2">TRIGGER</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** Ensures data integrity by automatically setting the `dateUpdated` column to the current date *before* any modification to an Item record. This maintains an essential audit trail for every change.</p>
+                        </div>
+                        
+                        <div class="highlight-box">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">fn_DaysUnclaimed <span class="sql-feature-tag ml-2">FUNCTION</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** A real-time calculation used by the UI to determine how long an item has been waiting since its `dateFound`. This metric is key for inventory prioritization.</p>
+                        </div>
+                    </div>
+
+                    <!-- Procedures -->
+                    <div class="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-code-branch mr-2"></i> Stored Procedures</h3>
+                        <div class="highlight-box !border-red-500 bg-red-50">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">sp_ApproveClaim <span class="sql-feature-tag !bg-red-200 !text-red-800 ml-2">PROCEDURE</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** Executes a critical **database transaction**. When a staff member hits 'Approve' on the Admin Panel, this procedure ensures *all* related updates happen or fail together:</p>
+                            <ul class="list-disc list-inside text-sm text-gray-700 mt-2 ml-4">
+                                <li>Sets `Claim.verificationStatus` to 'Approved'.</li>
+                                <li>Sets `Item.isClaimed` to TRUE.</li>
+                                <li>Inserts a new 'Claimed' entry into the `ItemStatus` history table.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Queries -->
+                    <div class="md:col-span-2 p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-search-plus mr-2"></i> Complex Reporting Queries (UI Backbones)</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <p class="text-sm text-gray-700 highlight-box">**Query 1 (Dashboard Summary):** Aggregates total claimed/unclaimed items and average wait time. *Drives the Metrics Cards.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 2 (Employee Performance):** Joins Employee and ItemManagedBy to show staff workload. *Drives the Staff Workload Table.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 3 (Pending Claims):** Multi-table join to give staff full context (Item, Owner, Found Location, Staff) on items awaiting approval. *Drives the Pending Claims Table.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 4 (Public Search):** Filters and displays all unclaimed items and uses the **`fn_DaysUnclaimed`** function. *Drives the Public Search Table.*</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- Custom Modal for Alerts/Feedback -->
+    <div id="customModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+            <h4 id="modalTitle" class="text-2xl font-bold mb-4 text-blue-600"></h4>
+            <p id="modalMessage" class="mb-8 text-gray-700"></p>
+            <button onclick="closeModal()" class="w-full bg-pink-500 text-white p-3 rounded-lg font-semibold hover:bg-pink-600 transition duration-200 shadow-lg">Close & Continue</button>
+        </div>
+    </div>
+
+    <script>
+        // API base - relative so it works when UI is served from the backend
+        const API_BASE = '/api';
+
+        // In-memory caches for quick filtering
+        let unclaimedItems = [];
+        let pendingClaims = [];
+
+        // --- API helpers ---
+        async function fetchUnclaimedItems() {
+            try {
+                const res = await fetch(`${API_BASE}/items`);
+                if (!res.ok) throw new Error('Failed to load items');
+                unclaimedItems = await res.json();
+                renderUnclaimedItems(unclaimedItems);
+            } catch (err) {
+                showModal('Error', `Could not load unclaimed items: ${err.message}`);
+            }
+        }
+
+        async function fetchPendingClaims() {
+            try {
+                const res = await fetch(`${API_BASE}/claims`);
+                if (!res.ok) throw new Error('Failed to load claims');
+                pendingClaims = await res.json();
+                renderPendingClaims(pendingClaims);
+            } catch (err) {
+                showModal('Error', `Could not load claims: ${err.message}`);
+            }
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/metrics`);
+                if (!res.ok) throw new Error('Failed to load metrics');
+                const data = await res.json();
+                renderMetrics(data);
+            } catch (err) {
+                showModal('Error', `Could not load metrics: ${err.message}`);
+            }
+        }
+
+        async function fetchEmployees() {
+            try {
+                const res = await fetch(`${API_BASE}/employees`);
+                if (!res.ok) throw new Error('Failed to load employees');
+                const data = await res.json();
+                renderEmployeePerformance(data);
+            } catch (err) {
+                showModal('Error', `Could not load employees: ${err.message}`);
+            }
+        }
+
+        // --- Actions ---
+        document.getElementById('addItemForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                itemName: document.getElementById('newItemName').value,
+                itemCategory: document.getElementById('newItemCategory').value,
+                color: document.getElementById('newItemColor').value,
+                itemDescription: document.getElementById('newItemDescription').value,
+                dateFound: document.getElementById('newDateFound').value,
+                FoundAt: document.getElementById('newPlaceID').options[document.getElementById('newPlaceID').selectedIndex].text,
+                newFinderEmail: document.getElementById('newFinderEmail').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Failed to add item');
+                const created = await res.json();
+                // Refresh
+                await fetchUnclaimedItems();
+                this.reset();
+                showModal('Report Successful!', `Item **${created.itemName}** added (ID: **${created.itemID}**).`);
+                showView('public-search');
+            } catch (err) {
+                showModal('Error', `Could not submit item: ${err.message}`);
+            }
+        });
+
+        async function approveClaim(claimID) {
+            try {
+                const res = await fetch(`${API_BASE}/claims/${claimID}/approve`, { method: 'POST' });
+                if (!res.ok) {
+                    const err = await res.json().catch(()=>({error: 'Unknown'}));
+                    throw new Error(err.error || 'Failed to approve claim');
+                }
+                await fetchPendingClaims();
+                await fetchUnclaimedItems();
+                showModal('Claim Approved', `Claim ID **${claimID}** approved and item marked as claimed.`);
+            } catch (err) {
+                showModal('Error', `Could not approve claim: ${err.message}`);
+            }
+        }
+
+        // --- Rendering ---
+        function renderUnclaimedItems(data) {
+            const tbody = document.getElementById('unclaimedItemsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gray-100 transition duration-150 text-sm';
+                row.insertCell().textContent = item.itemID;
+                row.insertCell().innerHTML = `<p class="font-semibold text-gray-800">${item.itemName}</p><span class="text-xs text-pink-500">${item.itemCategory}</span>`;
+                row.insertCell().innerHTML = `${(item.itemDescription||'').substring(0,40)}...<br><span class="text-xs italic text-gray-500">Color: ${item.color||''}</span>`;
+                row.insertCell().innerHTML = `<p class="font-medium">${new Date(item.dateFound).toLocaleDateString()}</p><span class="text-xs text-blue-500">${item.FoundAt||''}</span>`;
+                const daysCell = row.insertCell();
+                const days = Number(item.DaysUnclaimed || Math.floor((Date.now() - new Date(item.dateFound).getTime())/(1000*60*60*24)));
+                daysCell.textContent = days;
+                daysCell.className = `text-center font-bold text-lg p-3 ${days > 200 ? 'text-red-600 animate-pulse' : 'text-green-600'}`;
+            });
+        }
+
+        function filterUnclaimedItems() {
+            const searchText = document.getElementById('itemSearch').value.toLowerCase();
+            const filtered = unclaimedItems.filter(item => {
+                return (item.itemName||'').toLowerCase().includes(searchText) || (item.itemDescription||'').toLowerCase().includes(searchText) || (item.itemCategory||'').toLowerCase().includes(searchText);
+            });
+            renderUnclaimedItems(filtered);
+        }
+
+        function renderMetrics(data) {
+            const container = document.getElementById('metricsCards');
+            container.innerHTML = '';
+            data.forEach(metric => {
+                const card = document.createElement('div');
+                let iconClass = metric.Status === 'Claimed' ? 'fa-check-circle text-green-500' : 'fa-hourglass-half text-red-500';
+                card.className = `card bg-white p-6 rounded-xl shadow-lg border-l-4 ${metric.Status === 'Claimed' ? 'border-green-500' : 'border-red-500'}`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <p class="text-lg font-semibold text-gray-500">${metric.Status} Items</p>
+                        <i class="fas ${iconClass} text-2xl"></i>
+                    </div>
+                    <p class="text-4xl font-extrabold text-gray-900 mt-2">${metric.TotalItems}</p>
+                    <p class="text-sm text-gray-500 mt-1">Avg. Wait Time: <span class="font-bold text-blue-500">${Number(metric.AverageDaysUnclaimed).toFixed(2)} days</span></p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderEmployeePerformance(data) {
+            const tbody = document.getElementById('employeeTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(employee => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-blue-50 transition duration-150';
+                row.insertCell().textContent = employee.employeeID;
+                row.insertCell().textContent = `${employee.firstName} ${employee.lastName}`;
+                row.insertCell().textContent = employee.position;
+                row.insertCell().textContent = employee.ItemsManaged;
+            });
+        }
+
+        function renderPendingClaims(data) {
+            const tbody = document.getElementById('pendingClaimsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(claim => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-yellow-100 transition duration-150';
+                row.insertCell().textContent = claim.claimID;
+                row.insertCell().textContent = new Date(claim.claimDate).toLocaleDateString();
+                row.insertCell().textContent = `${claim.itemName} (${claim.itemCategory})`;
+                row.insertCell().textContent = `${claim.OwnerFirstName} ${claim.OwnerLastName}`;
+                row.insertCell().textContent = claim.FoundAtLocation;
+                const actionCell = row.insertCell();
+                actionCell.className = 'text-center';
+                const button = document.createElement('button');
+                button.textContent = 'Approve Claim';
+                button.className = 'bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition duration-150 shadow-md transform hover:scale-105';
+                button.onclick = () => approveClaim(claim.claimID);
+                actionCell.appendChild(button);
+            });
+            if (data.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 6;
+                cell.className = 'text-center py-6 text-gray-500 italic bg-white';
+                cell.textContent = '✅ No critical pending claims! System operational.';
+            }
+        }
+
+        // --- Navigation + initialization ---
+        function showNotifications() {
+            showModal('System Notifications', 'You have **3 New Alerts**:<br><ul class="list-disc list-inside mt-3 space-y-1"><li>Claim VC101 status is **Pending** review.</li><li>Item #3 (Maths Book) is **30 days overdue**.</li><li>New Found Item reported at City Library.</li></ul>');
+        }
+
+        function showProfile() {
+            showModal('User Profile & Status', 'You are logged in as **Arjun Menon** (Manager).<br><br>Your active items managed: **2**<br>Last Login: 2025-11-06<br>Current Session: Active');
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(view => view.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="showView('${viewId}')"]`).classList.add('active');
+
+            if (viewId === 'admin-panel') {
+                fetchMetrics();
+                fetchEmployees();
+                fetchPendingClaims();
+            }
+            if (viewId === 'public-search') {
+                fetchUnclaimedItems();
+            }
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modalTitle').innerHTML = title;
+            document.getElementById('modalMessage').innerHTML = message;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('customModal').classList.add('hidden'); }
+
+        window.onload = () => {
+            // Set date input to today and prevent future dates
+            const dateInput = document.getElementById('newDateFound');
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+            dateInput.max = today;
+            
+            // Initial fetch
+            fetchUnclaimedItems();
+            showView('public-search');
+        };
+
+    </script>
+</body>
+</html>

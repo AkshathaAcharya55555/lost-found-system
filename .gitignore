@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database backup
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Viva preparation docs (internal use)
+VIVA_*.md
+PRE_VIVA_*.md
+DATABASE_EXPLANATION.md
+EXPLAIN_STORED_PROCEDURES.md
+SQL_FEATURES_LOCATION.md
+ARCHITECTURE.md
+CHECKLIST.md
+QUICKSTART.md
+SUMMARY.md
+INSTALL_PYTHON.md
+
+# Test/utility scripts
+add_claim.py
+add_multiple_claims.py
+add_test_phone_claim.py
+prove_sql_connection.py
+show_database.py
+fix_future_dates.py
+test_queries.sql
+create_db.bat
