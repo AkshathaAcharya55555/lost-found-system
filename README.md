@@ -2,6 +2,12 @@
 
 A web-based Lost and Found Management System built with Python, SQLite, and vanilla JavaScript. This system helps organizations manage found items and claims efficiently with a clean, modern interface.
 
+##  Access the Application
+
+1. Start the server: `python server.py`
+2. Open browser: http://localhost:8000
+3. The web GUI will load automatically
+
 ## Features
 
 - **Public Search Portal**: Users can search for lost items by category, color, and location
