@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost & Found Dynamo - Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* Blue to Pink Gradient */
+            background: linear-gradient(135deg, #3b82f6 0%, #ec4899 100%); 
+            min-height: 100vh;
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .app-card {
+            background-color: white;
+            border-radius: 1.5rem; /* Larger rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+            padding: 2.5rem;
+            transition: all 0.5s ease;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            position: relative;
+            padding-bottom: 10px; /* Space for the underline */
+        }
+        .tab-button.active { 
+            color: #ec4899; 
+            font-weight: 700; 
+        }
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: #ec4899; 
+            border-radius: 2px;
+        }
+        .card { 
+            transition: all 0.3s ease; 
+            transform: scale(1);
+        }
+        .card:hover { 
+            transform: scale(1.02); 
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .sql-feature-tag {
+            background-color: #fce7f3; /* Light pink background */
+            color: #be185d; /* Dark pink text */
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+        }
+        .highlight-box {
+            background-color: #e0f2fe; /* Light blue */
+            border-left: 5px solid #3b82f6; /* Solid blue bar */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .input-glow:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* Blue glow */
+            border-color: #3b82f6;
+        }
+        .table-container { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            position: relative;
+        }
+        .table-container thead th {
+            z-index: 10;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .view {
+            display: block;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="main-container">
+        <!-- Header and Navigation Tabs -->
+        <header class="app-card mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-4xl font-extrabold text-gray-800 flex items-center">
+                    <i class="fas fa-search-location mr-3 text-pink-500"></i>Lost & Found Dynamo
+                </h1>
+                <div class="flex space-x-2 items-center">
+                    <!-- User Info Display -->
+                    <div id="userInfo" class="bg-gray-100 px-4 py-2 rounded-full flex items-center mr-2">
+                        <i class="fas fa-user-circle text-gray-600 mr-2"></i>
+                        <span id="userName" class="font-semibold text-gray-700">Guest</span>
+                        <span id="userRole" class="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded-full">Viewer</span>
+                    </div>
+                    <!-- FUNCTIONAL BUTTONS -->
+                    <button onclick="showNotifications()" class="bg-blue-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-600 transition duration-300 shadow-md flex items-center transform hover:scale-105">
+                        <i class="fas fa-bell mr-2"></i> Notifications
+                    </button>
+                    <button onclick="showProfile()" class="bg-purple-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-purple-600 transition duration-300 shadow-md flex items-center transform hover:scale-105">
+                        <i class="fas fa-id-card mr-2"></i> My Access
+                    </button>
+                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-red-600 transition duration-300 shadow-md flex items-center transform hover:scale-105">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                    </button>
+                </div>
+            </div>
+            
+            <nav class="flex border-b-2 border-gray-100 space-x-8 -mb-4 pt-4">
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none active" onclick="showView('public-search')">
+                    <i class="fas fa-box-open mr-2"></i> Public Item Search
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('add-item')">
+                    <i class="fas fa-plus-circle mr-2"></i> Report Found Item
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('admin-panel')">
+                    <i class="fas fa-cogs mr-2"></i> Admin Panel
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('users-view')">
+                    <i class="fas fa-users-cog mr-2"></i> User Privileges
+                </button>
+                <button class="tab-button p-2 md:p-4 text-gray-600 focus:outline-none" onclick="showView('sql-features')">
+                    <i class="fas fa-database mr-2"></i> Database Architecture
+                </button>
+            </nav>
+        </header>
+
+        <!-- 1. Public Search View -->
+        <div id="public-search" class="view">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Unclaimed Inventory & Status</h2>
+
+                <!-- Search Form -->
+                <div class="bg-gray-50 p-6 rounded-xl shadow-inner mb-8 border border-gray-200">
+                    <label for="itemSearch" class="block text-lg font-medium text-gray-700 mb-3">Search for Your Lost Property:</label>
+                    <div class="flex space-x-3">
+                        <input type="text" id="itemSearch" onkeyup="filterUnclaimedItems()" placeholder="e.g., 'Dell Laptop', 'Blue Jacket', 'Wallet'" class="input-glow flex-grow p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200">
+                        <button onclick="filterUnclaimedItems()" class="bg-pink-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-pink-600 transition duration-200 shadow-lg">
+                            <i class="fas fa-search mr-2"></i> Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Unclaimed Items Table (Driven by Query 4 and Function fn_DaysUnclaimed) -->
+                <div class="table-container shadow-inner border border-gray-100 rounded-xl">
+                    <h3 class="text-xl font-medium p-4 bg-gray-50 rounded-t-xl text-gray-700 border-b">Available Unclaimed Items <span class="sql-feature-tag"><i class="fas fa-terminal mr-1"></i> Query 4</span></h3>
+                    <table id="unclaimedItemsTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name & Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description/Color</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Found Date / Location</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Days Unclaimed <span class="text-blue-500 font-bold">(*fn_DaysUnclaimed)</span></th>
+                                <th id="deleteColumnHeader" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" style="display:none;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Report Found Item View -->
+        <div id="add-item" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center"><i class="fas fa-hand-holding-heart mr-3 text-pink-500"></i> Report a Found Item - Thank You!</h2>
+                <p class="text-gray-600 mb-8">Please provide details about the item you found and where you found it. This helps us reunite it with the owner quickly.</p>
+
+                <form id="addItemForm" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Item Details -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-blue-600">Item Information</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                            <input type="text" id="newItemName" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="newItemCategory" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="" disabled selected>Select Category</option>
+                                <option>Electronics</option>
+                                <option>Accessories</option>
+                                <option>Books</option>
+                                <option>Clothing</option>
+                                <option>Documents</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                            <input type="text" id="newItemColor" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Detailed Description</label>
+                            <textarea id="newItemDescription" rows="3" required class="input-glow w-full p-3 border border-gray-300 rounded-lg"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Location & Finder Details -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold border-b pb-2 mb-4 text-blue-600">Location & Finder Information</h3>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Date Found</label>
+                            <input type="date" id="newDateFound" required max="" class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Found Location (Place Name)</label>
+                            <select id="newPlaceID" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="" disabled selected>Select Public Place</option>
+                                <option value="1">City Library</option>
+                                <option value="3">Metro Station</option>
+                                <option value="4">Airport</option>
+                                <option value="6">Park</option>
+                                <option value="9">University</option>
+                                <option value="10">Theatre</option>
+                            </select>
+                        </div>
+                        <div class="pt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Your Contact Email (Finder)</label>
+                            <input type="email" id="newFinderEmail" required class="input-glow w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="pt-6">
+                            <button type="submit" class="w-full bg-pink-500 text-white text-lg py-3 rounded-xl font-bold hover:bg-pink-600 transition duration-200 shadow-xl shadow-pink-300/50 flex items-center justify-center">
+                                <i class="fas fa-upload mr-3"></i> Submit Item Report
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. Admin Panel View -->
+        <div id="admin-panel" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Administration & Claim Management</h2>
+
+                <!-- Metrics Section (Driven by Query 1) -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-600 flex items-center"><i class="fas fa-chart-line mr-2"></i> System Metrics <span class="sql-feature-tag ml-3">Query 1</span></h3>
+                    <div id="metricsCards" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Metrics will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Employee Performance Section (Driven by Query 2) -->
+                <div class="bg-gray-50 p-6 rounded-xl shadow-inner mb-8 table-container border border-gray-200">
+                    <h3 class="text-xl font-semibold mb-4 text-pink-600 flex items-center"><i class="fas fa-users-cog mr-2"></i> Staff Workload (Performance) <span class="sql-feature-tag ml-3">Query 2</span></h3>
+                    <table id="employeeTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Employee Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Position</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Items Managed</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Claim Management Section (Driven by Query 3 and Procedure sp_ApproveClaim) -->
+                <div class="bg-yellow-50 p-6 rounded-xl shadow-inner border border-yellow-200 table-container">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600 flex items-center"><i class="fas fa-gavel mr-2"></i> Pending Claims for Review <span class="sql-feature-tag ml-3">Query 3</span></h3>
+                    <table id="pendingClaimsTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-yellow-100 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Claim ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Claim Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Item Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Owner Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Found At</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Action <span class="text-red-500 font-bold">(*sp_ApproveClaim)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. User Privileges View (Role-Based Access Control) -->
+        <div id="users-view" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center">
+                    <i class="fas fa-users-cog mr-3 text-purple-600"></i> User Roles & Privileges (RBAC)
+                </h2>
+                <p class="text-gray-600 mb-8">Role-Based Access Control ensures secure access to different system features based on user roles.</p>
+
+                <div class="bg-purple-50 p-6 rounded-xl shadow-inner mb-8 border border-purple-200 table-container">
+                    <h3 class="text-xl font-semibold mb-4 text-purple-600 flex items-center">
+                        <i class="fas fa-shield-alt mr-2"></i> All System Users
+                    </h3>
+                    <table id="usersTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-purple-100 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Username</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Full Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Read</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Write</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Approve</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Delete</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <!-- Data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Privilege Explanation -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-6 border border-blue-200 rounded-xl bg-blue-50">
+                        <h4 class="font-bold text-lg text-blue-700 mb-3"><i class="fas fa-info-circle mr-2"></i>Access Levels</h4>
+                        <ul class="space-y-2 text-sm text-gray-700">
+                            <li><span class="font-semibold text-blue-600">Read:</span> View items, claims, reports</li>
+                            <li><span class="font-semibold text-green-600">Write:</span> Add new found items, submit reports</li>
+                            <li><span class="font-semibold text-yellow-600">Approve:</span> Approve/reject ownership claims</li>
+                            <li><span class="font-semibold text-red-600">Delete:</span> Remove items and claims permanently</li>
+                        </ul>
+                    </div>
+                    <div class="p-6 border border-purple-200 rounded-xl bg-purple-50">
+                        <h4 class="font-bold text-lg text-purple-700 mb-3"><i class="fas fa-user-tag mr-2"></i>Role Hierarchy</h4>
+                        <ul class="space-y-2 text-sm text-gray-700">
+                            <li><span class="font-semibold text-red-600">Admin:</span> Full system access (All privileges)</li>
+                            <li><span class="font-semibold text-blue-600">Manager:</span> Read + Write + Approve</li>
+                            <li><span class="font-semibold text-green-600">Staff:</span> Read + Write only</li>
+                            <li><span class="font-semibold text-gray-600">Viewer:</span> Read only (Public access)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Database Architecture View -->
+        <div id="sql-features" class="view hidden">
+            <div class="app-card">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 flex items-center"><i class="fas fa-server mr-3 text-blue-600"></i> Core Database Architecture Components</h2>
+                <p class="text-gray-600 mb-8">These components handle complex logic and data integrity behind the scenes, ensuring the system runs smoothly and securely.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    <!-- Triggers & Functions -->
+                    <div class="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-sitemap mr-2"></i> Triggers & Functions</h3>
+                        
+                        <div class="highlight-box">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">trg_Item_BeforeUpdate <span class="sql-feature-tag ml-2">TRIGGER</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** Ensures data integrity by automatically setting the `dateUpdated` column to the current date *before* any modification to an Item record. This maintains an essential audit trail for every change.</p>
+                        </div>
+                        
+                        <div class="highlight-box">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">fn_DaysUnclaimed <span class="sql-feature-tag ml-2">FUNCTION</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** A real-time calculation used by the UI to determine how long an item has been waiting since its `dateFound`. This metric is key for inventory prioritization.</p>
+                        </div>
+                    </div>
+
+                    <!-- Procedures -->
+                    <div class="p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-code-branch mr-2"></i> Stored Procedures</h3>
+                        <div class="highlight-box !border-red-500 bg-red-50">
+                            <h4 class="font-semibold text-lg text-gray-800 mb-2">sp_ApproveClaim <span class="sql-feature-tag !bg-red-200 !text-red-800 ml-2">PROCEDURE</span></h4>
+                            <p class="text-sm text-gray-700">**Purpose:** Executes a critical **database transaction**. When a staff member hits 'Approve' on the Admin Panel, this procedure ensures *all* related updates happen or fail together:</p>
+                            <ul class="list-disc list-inside text-sm text-gray-700 mt-2 ml-4">
+                                <li>Sets `Claim.verificationStatus` to 'Approved'.</li>
+                                <li>Sets `Item.isClaimed` to TRUE.</li>
+                                <li>Inserts a new 'Claimed' entry into the `ItemStatus` history table.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Queries -->
+                    <div class="md:col-span-2 p-6 border border-gray-200 rounded-xl bg-gray-50 shadow-md">
+                        <h3 class="text-2xl font-bold text-blue-600 mb-4 flex items-center"><i class="fas fa-search-plus mr-2"></i> Complex Reporting Queries (UI Backbones)</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <p class="text-sm text-gray-700 highlight-box">**Query 1 (Dashboard Summary):** Aggregates total claimed/unclaimed items and average wait time. *Drives the Metrics Cards.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 2 (Employee Performance):** Joins Employee and ItemManagedBy to show staff workload. *Drives the Staff Workload Table.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 3 (Pending Claims):** Multi-table join to give staff full context (Item, Owner, Found Location, Staff) on items awaiting approval. *Drives the Pending Claims Table.*</p>
+                            <p class="text-sm text-gray-700 highlight-box">**Query 4 (Public Search):** Filters and displays all unclaimed items and uses the **`fn_DaysUnclaimed`** function. *Drives the Public Search Table.*</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- Custom Modal for Alerts/Feedback -->
+    <div id="customModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 scale-100">
+            <h4 id="modalTitle" class="text-2xl font-bold mb-4 text-blue-600"></h4>
+            <p id="modalMessage" class="mb-8 text-gray-700"></p>
+            <button onclick="closeModal()" class="w-full bg-pink-500 text-white p-3 rounded-lg font-semibold hover:bg-pink-600 transition duration-200 shadow-lg">Close & Continue</button>
+        </div>
+    </div>
+
+    <script>
+        // API base - relative so it works when UI is served from the backend
+        const API_BASE = '/api';
+
+        // In-memory caches for quick filtering
+        let unclaimedItems = [];
+        let pendingClaims = [];
+        
+        // Current logged-in user
+        let currentUser = null;
+
+        // Check user privileges on page load
+        window.onload = function() {
+            if (!checkUserSession()) {
+                return; // Stop if not logged in
+            }
+            const dateInput = document.getElementById('newDateFound');
+            if (dateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.value = today;
+                dateInput.max = today;
+            }
+            fetchUnclaimedItems();
+            showView('public-search');
+        };
+
+        function checkUserSession() {
+            // Try localStorage first, then sessionStorage
+            let userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                userData = sessionStorage.getItem('currentUser');
+            }
+            
+            console.log('Checking session...');
+            console.log('localStorage data:', localStorage.getItem('currentUser'));
+            console.log('sessionStorage data:', sessionStorage.getItem('currentUser'));
+            console.log('Using data:', userData);
+            
+            if (!userData) {
+                // No user logged in - redirect to login page (only once)
+                console.error('No user session found');
+                if (!window.location.pathname.includes('login.html')) {
+                    console.log('Redirecting to login page...');
+                    window.location.replace('/login.html'); // Use replace to avoid back button issues
+                }
+                return false;
+            }
+            
+            try {
+                currentUser = JSON.parse(userData);
+                console.log('Current user loaded successfully:', currentUser);
+                console.log('User privileges - canRead:', currentUser.canRead, 'canWrite:', currentUser.canWrite, 'canApprove:', currentUser.canApprove);
+                updateUIForUser(currentUser);
+                return true;
+            } catch (e) {
+                console.error('Error parsing user data:', e);
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('currentUser');
+                window.location.replace('/login.html');
+                return false;
+            }
+        }
+
+        function updateUIForUser(user) {
+            console.log('Updating UI for user:', user);
+            
+            // Update header with user info
+            document.getElementById('userName').textContent = user.fullName;
+            document.getElementById('userRole').textContent = user.role;
+            
+            // Set role badge color
+            const roleElement = document.getElementById('userRole');
+            roleElement.className = 'ml-2 text-xs px-2 py-1 rounded-full';
+            if (user.role === 'Admin') {
+                roleElement.className += ' bg-red-500 text-white';
+            } else if (user.role === 'Manager') {
+                roleElement.className += ' bg-blue-500 text-white';
+            } else if (user.role === 'Staff') {
+                roleElement.className += ' bg-green-500 text-white';
+            } else {
+                roleElement.className += ' bg-gray-500 text-white';
+            }
+
+            // Get tab elements
+            const addItemTab = document.querySelector('[onclick="showView(\'add-item\')"]');
+            const adminTab = document.querySelector('[onclick="showView(\'admin-panel\')"]');
+            
+            // Show/hide tabs based on ACTUAL privileges
+            if (addItemTab) {
+                if (user.canWrite === 1 || user.canWrite === true) {
+                    // User CAN write - SHOW the tab
+                    addItemTab.style.display = 'block';
+                    addItemTab.style.visibility = 'visible';
+                    addItemTab.disabled = false;
+                    console.log('Showing Report Item tab - user has write access');
+                } else {
+                    // User CANNOT write - HIDE the tab
+                    addItemTab.style.display = 'none';
+                    addItemTab.style.visibility = 'hidden';
+                    addItemTab.disabled = true;
+                    console.log('Hiding Report Item tab - user has no write access');
+                }
+            }
+            
+            if (adminTab) {
+                if (user.canApprove === 1 || user.canApprove === true) {
+                    // User CAN approve - SHOW the tab
+                    adminTab.style.display = 'block';
+                    adminTab.style.visibility = 'visible';
+                    adminTab.disabled = false;
+                    console.log('Showing Admin Panel tab - user has approve access');
+                } else {
+                    // User CANNOT approve - HIDE the tab
+                    adminTab.style.display = 'none';
+                    adminTab.style.visibility = 'hidden';
+                    adminTab.disabled = true;
+                    console.log('Hiding Admin Panel tab - user has no approve access');
+                }
+            }
+            
+            // Show/hide delete column for administrators
+            const deleteColumnHeader = document.getElementById('deleteColumnHeader');
+            if (deleteColumnHeader) {
+                if (user.canDelete === 1 || user.canDelete === true) {
+                    deleteColumnHeader.style.display = 'table-cell';
+                    console.log('Showing delete column - user has delete privilege');
+                } else {
+                    deleteColumnHeader.style.display = 'none';
+                    console.log('Hiding delete column - user has no delete privilege');
+                }
+            }
+
+            // Also ensure the view divs respect privileges
+            const addItemView = document.getElementById('add-item');
+            const adminView = document.getElementById('admin-panel');
+            
+            if (addItemView) {
+                if (user.canWrite === 1 || user.canWrite === true) {
+                    addItemView.style.display = 'none'; // Hidden by default, shown when tab clicked
+                } else {
+                    addItemView.style.display = 'none';
+                    addItemView.classList.add('hidden');
+                }
+            }
+            
+            if (adminView) {
+                if (user.canApprove === 1 || user.canApprove === true) {
+                    adminView.style.display = 'none'; // Hidden by default, shown when tab clicked
+                } else {
+                    adminView.style.display = 'none';
+                    adminView.classList.add('hidden');
+                }
+            }
+            
+            console.log('UI update complete. User privileges:', {
+                canRead: user.canRead,
+                canWrite: user.canWrite,
+                canApprove: user.canApprove,
+                canDelete: user.canDelete
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('currentUser');
+            currentUser = null;
+            window.location.href = '/login.html';
+        }
+
+        // --- API helpers ---
+        async function fetchUnclaimedItems() {
+            try {
+                const res = await fetch(`${API_BASE}/items`);
+                if (!res.ok) throw new Error('Failed to load items');
+                unclaimedItems = await res.json();
+                renderUnclaimedItems(unclaimedItems);
+            } catch (err) {
+                showModal('Error', `Could not load unclaimed items: ${err.message}`);
+            }
+        }
+
+        async function fetchPendingClaims() {
+            try {
+                const res = await fetch(`${API_BASE}/claims`);
+                if (!res.ok) throw new Error('Failed to load claims');
+                pendingClaims = await res.json();
+                renderPendingClaims(pendingClaims);
+            } catch (err) {
+                showModal('Error', `Could not load claims: ${err.message}`);
+            }
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/metrics`);
+                if (!res.ok) throw new Error('Failed to load metrics');
+                const data = await res.json();
+                renderMetrics(data);
+            } catch (err) {
+                showModal('Error', `Could not load metrics: ${err.message}`);
+            }
+        }
+
+        async function fetchEmployees() {
+            try {
+                const res = await fetch(`${API_BASE}/employees`);
+                if (!res.ok) throw new Error('Failed to load employees');
+                const data = await res.json();
+                renderEmployeePerformance(data);
+            } catch (err) {
+                showModal('Error', `Could not load employees: ${err.message}`);
+            }
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await fetch(`${API_BASE}/users`);
+                if (!res.ok) throw new Error('Failed to load users');
+                const data = await res.json();
+                renderUsers(data);
+            } catch (err) {
+                showModal('Error', `Could not load users: ${err.message}`);
+            }
+        }
+
+        // --- Actions ---
+        document.getElementById('addItemForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Check write privilege
+            if (!currentUser || !currentUser.canWrite || currentUser.canWrite === 0) {
+                showModal('Access Denied', `❌ You don't have permission to add items.\n\nYour role: ${currentUser?.role || 'Guest'}\nRequired: Staff, Manager, or Admin privileges`);
+                return;
+            }
+
+            const payload = {
+                itemName: document.getElementById('newItemName').value,
+                itemCategory: document.getElementById('newItemCategory').value,
+                color: document.getElementById('newItemColor').value,
+                itemDescription: document.getElementById('newItemDescription').value,
+                dateFound: document.getElementById('newDateFound').value,
+                FoundAt: document.getElementById('newPlaceID').options[document.getElementById('newPlaceID').selectedIndex].text,
+                newFinderEmail: document.getElementById('newFinderEmail').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Failed to add item');
+                const created = await res.json();
+                // Refresh
+                await fetchUnclaimedItems();
+                this.reset();
+                showModal('Report Successful!', `Item **${created.itemName}** added (ID: **${created.itemID}**).`);
+                showView('public-search');
+            } catch (err) {
+                showModal('Error', `Could not submit item: ${err.message}`);
+            }
+        });
+
+        async function approveClaim(claimID) {
+            // Check if user has approval privileges
+            if (!currentUser || !currentUser.canApprove || currentUser.canApprove === 0) {
+                showModal('Access Denied', `❌ You don't have permission to approve claims.\n\nYour role: ${currentUser?.role || 'Guest'}\nRequired: Admin or Manager privileges`);
+                return;
+            }
+
+            if (!confirm(`Approve claim #${claimID}? This action will mark the item as claimed.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/claims/${claimID}/approve`, { method: 'POST' });
+                if (!res.ok) {
+                    const err = await res.json().catch(()=>({error: 'Unknown'}));
+                    throw new Error(err.error || 'Failed to approve claim');
+                }
+                await fetchPendingClaims();
+                await fetchUnclaimedItems();
+                await fetchMetrics();
+                showModal('✅ Claim Approved', `Claim ID ${claimID} approved successfully by ${currentUser.fullName}!`);
+            } catch (err) {
+                showModal('Error', `Could not approve claim: ${err.message}`);
+            }
+        }
+
+        async function deleteItem(itemID, itemName) {
+            // Check if user has delete privileges
+            if (!currentUser || !currentUser.canDelete || currentUser.canDelete === 0) {
+                showModal('Access Denied', `❌ You don't have permission to delete items.\n\nYour role: ${currentUser?.role || 'Guest'}\nRequired: Administrator privileges only`);
+                return;
+            }
+
+            if (!confirm(`⚠️ DELETE "${itemName}" (ID: ${itemID})?\n\nThis action is PERMANENT and cannot be undone!\n\nOnly administrators can delete items.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/items/${itemID}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json().catch(()=>({error: 'Unknown'}));
+                    throw new Error(err.error || 'Failed to delete item');
+                }
+                await fetchUnclaimedItems();
+                await fetchMetrics();
+                showModal('✅ Item Deleted', `Item "${itemName}" (ID: ${itemID}) has been permanently deleted by ${currentUser.fullName}.`);
+            } catch (err) {
+                showModal('Error', `Could not delete item: ${err.message}`);
+            }
+        }
+
+        // --- Rendering ---
+        function renderUnclaimedItems(data) {
+            const tbody = document.getElementById('unclaimedItemsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-pink-50 transition duration-300 text-sm border-b border-gray-200';
+                row.insertCell().innerHTML = `<span class="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold">${item.itemID}</span>`;
+                row.insertCell().innerHTML = `<p class="font-bold text-gray-900 text-base">${item.itemName}</p><span class="inline-block mt-1 px-2 py-0.5 text-xs font-semibold bg-pink-100 text-pink-700 rounded-full">${item.itemCategory}</span>`;
+                row.insertCell().innerHTML = `<p class="text-gray-700">${(item.itemDescription||'').substring(0,40)}...</p><span class="inline-block mt-1 px-2 py-0.5 text-xs italic bg-purple-50 text-purple-700 rounded-md">Color: ${item.color||''}</span>`;
+                row.insertCell().innerHTML = `<p class="font-semibold text-gray-800">${new Date(item.dateFound).toLocaleDateString()}</p><span class="inline-block mt-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-md"><i class="fas fa-map-marker-alt mr-1"></i>${item.FoundAt||''}</span>`;
+                const daysCell = row.insertCell();
+                const days = Number(item.DaysUnclaimed || Math.floor((Date.now() - new Date(item.dateFound).getTime())/(1000*60*60*24)));
+                daysCell.innerHTML = `<span class="inline-block px-4 py-2 rounded-lg font-bold text-xl ${days > 200 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-green-100 text-green-600'}">${days}</span>`;
+                daysCell.className = 'text-center';
+                
+                // Add delete button for administrators only
+                if (currentUser && (currentUser.canDelete === 1 || currentUser.canDelete === true)) {
+                    const actionCell = row.insertCell();
+                    actionCell.className = 'text-center';
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> Delete';
+                    deleteBtn.className = 'bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-600 transition duration-300 shadow-md transform hover:scale-105';
+                    deleteBtn.onclick = () => deleteItem(item.itemID, item.itemName);
+                    actionCell.appendChild(deleteBtn);
+                } else if (document.getElementById('deleteColumnHeader')) {
+                    row.insertCell(); // Empty cell for non-admins
+                }
+            });
+        }
+
+        function filterUnclaimedItems() {
+            const searchText = document.getElementById('itemSearch').value.toLowerCase();
+            const filtered = unclaimedItems.filter(item => {
+                return (item.itemName||'').toLowerCase().includes(searchText) || (item.itemDescription||'').toLowerCase().includes(searchText) || (item.itemCategory||'').toLowerCase().includes(searchText);
+            });
+            renderUnclaimedItems(filtered);
+        }
+
+        function renderMetrics(data) {
+            const container = document.getElementById('metricsCards');
+            container.innerHTML = '';
+            data.forEach(metric => {
+                const card = document.createElement('div');
+                let iconClass = metric.Status === 'Claimed' ? 'fa-check-circle' : 'fa-hourglass-half';
+                let gradientClass = metric.Status === 'Claimed' ? 'from-green-400 to-emerald-500' : 'from-red-400 to-rose-500';
+                card.className = `card bg-gradient-to-br ${gradientClass} p-6 rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between text-white">
+                        <p class="text-lg font-bold">${metric.Status} Items</p>
+                        <i class="fas ${iconClass} text-3xl opacity-80"></i>
+                    </div>
+                    <p class="text-5xl font-extrabold text-white mt-3">${metric.TotalItems}</p>
+                    <p class="text-sm text-white/90 mt-2">Avg. Wait Time: <span class="font-bold bg-white/20 px-2 py-1 rounded">${Number(metric.AverageDaysUnclaimed).toFixed(2)} days</span></p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderEmployeePerformance(data) {
+            const tbody = document.getElementById('employeeTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(employee => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 transition duration-300 border-b border-gray-200';
+                row.insertCell().innerHTML = `<span class="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-bold">${employee.employeeID}</span>`;
+                row.insertCell().innerHTML = `<span class="font-semibold text-gray-900">${employee.firstName} ${employee.lastName}</span>`;
+                row.insertCell().innerHTML = `<span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">${employee.position}</span>`;
+                row.insertCell().innerHTML = `<span class="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg font-bold text-lg">${employee.ItemsManaged}</span>`;
+            });
+        }
+
+        function renderUsers(data) {
+            const tbody = document.getElementById('usersTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(user => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition duration-300 border-b border-gray-200';
+                
+                // Username
+                row.insertCell().innerHTML = `<span class="font-mono font-bold text-gray-800">${user.username}</span>`;
+                
+                // Full Name
+                row.insertCell().innerHTML = `<span class="font-semibold text-gray-900">${user.fullName}</span>`;
+                
+                // Role with colored badge
+                const roleColors = {
+                    'Admin': 'bg-red-100 text-red-700',
+                    'Manager': 'bg-blue-100 text-blue-700',
+                    'Staff': 'bg-green-100 text-green-700',
+                    'Viewer': 'bg-gray-100 text-gray-700'
+                };
+                const roleColor = roleColors[user.role] || 'bg-gray-100 text-gray-700';
+                row.insertCell().innerHTML = `<span class="inline-block px-3 py-1 ${roleColor} rounded-full text-sm font-bold">${user.role}</span>`;
+                
+                // Privileges (checkmarks or X)
+                const checkIcon = '<i class="fas fa-check-circle text-green-500 text-lg"></i>';
+                const xIcon = '<i class="fas fa-times-circle text-red-400 text-lg"></i>';
+                
+                row.insertCell().innerHTML = `<div class="text-center">${user.canRead ? checkIcon : xIcon}</div>`;
+                row.insertCell().innerHTML = `<div class="text-center">${user.canWrite ? checkIcon : xIcon}</div>`;
+                row.insertCell().innerHTML = `<div class="text-center">${user.canApprove ? checkIcon : xIcon}</div>`;
+                row.insertCell().innerHTML = `<div class="text-center">${user.canDelete ? checkIcon : xIcon}</div>`;
+                
+                // Email
+                row.insertCell().innerHTML = `<span class="text-sm text-gray-600"><i class="fas fa-envelope mr-1"></i>${user.email}</span>`;
+            });
+        }
+
+        function renderPendingClaims(data) {
+            const tbody = document.getElementById('pendingClaimsTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            data.forEach(claim => {
+                const row = tbody.insertRow();
+                row.className = 'hover:bg-gradient-to-r hover:from-yellow-50 hover:to-orange-50 transition duration-300 border-b border-gray-200';
+                row.insertCell().innerHTML = `<span class="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold">${claim.claimID}</span>`;
+                row.insertCell().innerHTML = `<span class="font-semibold text-gray-800">${new Date(claim.claimDate).toLocaleDateString()}</span>`;
+                row.insertCell().innerHTML = `<p class="font-bold text-gray-900">${claim.itemName}</p><span class="inline-block mt-1 px-2 py-0.5 text-xs bg-pink-100 text-pink-700 rounded-full">${claim.itemCategory}</span>`;
+                row.insertCell().innerHTML = `<span class="font-semibold text-gray-800"><i class="fas fa-user mr-1 text-blue-500"></i>${claim.OwnerFirstName} ${claim.OwnerLastName}</span>`;
+                row.insertCell().innerHTML = `<span class="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-sm"><i class="fas fa-map-marker-alt mr-1"></i>${claim.FoundAtLocation}</span>`;
+                const actionCell = row.insertCell();
+                actionCell.className = 'text-center';
+                const button = document.createElement('button');
+                button.textContent = 'Approve Claim';
+                button.className = 'bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:from-green-600 hover:to-emerald-700 transition duration-300 shadow-lg transform hover:scale-110';
+                button.onclick = () => approveClaim(claim.claimID);
+                actionCell.appendChild(button);
+            });
+            if (data.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 6;
+                cell.className = 'text-center py-8 bg-gradient-to-r from-green-50 to-blue-50';
+                cell.innerHTML = '<span class="text-2xl">✅</span><p class="text-gray-700 font-semibold mt-2">No pending claims! System operational.</p>';
+            }
+        }
+
+        // --- Navigation + initialization ---
+        function showNotifications() {
+            showModal('System Notifications', 'You have **3 New Alerts**:<br><ul class="list-disc list-inside mt-3 space-y-1"><li>Claim VC101 status is **Pending** review.</li><li>Item #3 (Maths Book) is **30 days overdue**.</li><li>New Found Item reported at City Library.</li></ul>');
+        }
+
+        function showProfile() {
+            if (currentUser) {
+                const privileges = [];
+                if (currentUser.canRead) privileges.push('✓ Read');
+                if (currentUser.canWrite) privileges.push('✓ Write');
+                if (currentUser.canApprove) privileges.push('✓ Approve');
+                if (currentUser.canDelete) privileges.push('✓ Delete');
+                
+                showModal('My Access Privileges', 
+                    `<div class="text-left">
+                        <p><strong>Logged in as:</strong> ${currentUser.fullName}</p>
+                        <p><strong>Username:</strong> ${currentUser.username}</p>
+                        <p><strong>Role:</strong> <span class="font-bold text-blue-600">${currentUser.role}</span></p>
+                        <hr class="my-3">
+                        <p><strong>Your Privileges:</strong></p>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            ${privileges.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                        <hr class="my-3">
+                        <p class="text-xs text-gray-500">To switch users, please logout and login again.</p>
+                    </div>`
+                );
+            }
+        }
+
+        function showView(viewId) {
+            // Check if user has permission to view this section
+            if (!currentUser) {
+                console.error('No user session found - cannot show view');
+                // Trigger session check which will redirect if needed
+                checkUserSession();
+                return;
+            }
+
+            console.log(`Attempting to show view: ${viewId}`);
+            console.log('Current user:', currentUser);
+            console.log('canWrite value:', currentUser.canWrite, 'type:', typeof currentUser.canWrite);
+            console.log('canApprove value:', currentUser.canApprove, 'type:', typeof currentUser.canApprove);
+
+            // Enforce access control
+            if (viewId === 'add-item') {
+                if (!currentUser.canWrite || currentUser.canWrite === 0) {
+                    showModal('Access Denied', `❌ You don't have permission to add items.\n\nYour role: ${currentUser.role}\nRequired: Staff, Manager, or Admin privileges`);
+                    showView('public-search'); // Redirect to allowed view
+                    return;
+                }
+            }
+
+            if (viewId === 'admin-panel') {
+                if (!currentUser.canApprove || currentUser.canApprove === 0) {
+                    showModal('Access Denied', `❌ You don't have permission to access Admin Panel.\n\nYour role: ${currentUser.role}\nRequired: Manager or Admin privileges`);
+                    showView('public-search'); // Redirect to allowed view
+                    return;
+                }
+            }
+
+            document.querySelectorAll('.view').forEach(view => view.classList.add('hidden'));
+            const targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+                targetView.style.display = 'block';
+            }
+            
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            const activeTab = document.querySelector(`[onclick="showView('${viewId}')"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+
+            if (viewId === 'admin-panel' && currentUser.canApprove && currentUser.canApprove !== 0) {
+                fetchMetrics();
+                fetchEmployees();
+                fetchPendingClaims();
+            }
+            if (viewId === 'public-search') {
+                fetchUnclaimedItems();
+            }
+            if (viewId === 'users-view') {
+                fetchUsers();
+            }
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modalTitle').innerHTML = title;
+            document.getElementById('modalMessage').innerHTML = message;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('customModal').classList.add('hidden'); }
+
+        window.onload = () => {
+            // Set date input to today and prevent future dates
+            const dateInput = document.getElementById('newDateFound');
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+            dateInput.max = today;
+            
+            // Initial fetch
+            fetchUnclaimedItems();
+            showView('public-search');
+        };
+
+    </script>
+</body>
+</html>
